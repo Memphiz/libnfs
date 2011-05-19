@@ -7,7 +7,7 @@ const NFS3_COOKIEVERFSIZE = 8;
 
 typedef opaque cookieverf3[NFS3_COOKIEVERFSIZE];
 
-typedef unsigned hyper uint64;
+typedef u_int64_t uint64;
 typedef uint64 cookie3;
 
 struct nfs_fh3 {
