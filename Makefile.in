@@ -7,12 +7,12 @@ LIBS=@LIBS@
 INSTALLCMD = @install@ -c
 
 CC=gcc
-CFLAGS=-g -O0 -fPIC -Wall -W -I. -Iinclude -Imount -Infs -Iportmap "-D_U_=__attribute__((unused))" -D_FILE_OFFSET_BITS=64
+CFLAGS=-g -O0 -fPIC -Wall -W -I. -Iinclude -Imount -Infs -Iportmap "-D_U_=__attribute__((unused))"
 
 LIBNFS_A=lib/libnfs.a
-LIBNFS_SO_NAME=libnfs.so.1
+LIBNFS_SO_NAME=libnfs.so.1.dylib
 VERSION=1.0.0
-LIBNFS_SO=lib/libnfs.so.$(VERSION)
+LIBNFS_SO=lib/libnfs.so.$(VERSION).dylib
 
 LIB_OBJS = lib/pdu.o lib/init.o lib/socket.o \
 lib/libnfs.o lib/libnfs-sync.o
@@ -45,7 +45,7 @@ $(LIBNFS_A): $(LIBNFS_OBJS) $(LIB_OBJS)
 
 $(LIBNFS_SO): $(LIBNFS_OBJS) $(LIB_OBJS)
 	@echo Creating shared library $@
-	$(CC) -shared -Wl,-soname=$(LIBNFS_SO_NAME) -o $@ $(LIBNFS_OBJS) $(LIB_OBJS)
+	$(CC) -dynamiclib -o $@ $(LIBNFS_OBJS) $(LIB_OBJS)
 
 portmap/libnfs-raw-portmap.h: portmap/portmap.x
 	@echo Generating $@
@@ -53,7 +53,7 @@ portmap/libnfs-raw-portmap.h: portmap/portmap.x
 
 portmap/libnfs-raw-portmap.c: portmap/portmap.x
 	@echo Generating $@
-	rpcgen -c portmap/portmap.x | sed -e "s/#include \"portmap\/portmap.h\"/#include \"libnfs-raw-portmap.h\"/" > portmap/libnfs-raw-portmap.c
+	rpcgen -c portmap/portmap.x | sed -e "s/#include \"portmap.h\"/#include \"libnfs-raw-portmap.h\"/" > portmap/libnfs-raw-portmap.c
 
 portmap/libnfs-raw-portmap.o: portmap/libnfs-raw-portmap.c portmap/libnfs-raw-portmap.h
 	@echo Compiling $@
@@ -65,7 +65,7 @@ mount/libnfs-raw-mount.h: mount/mount.x
 
 mount/libnfs-raw-mount.c: mount/mount.x
 	@echo Generating $@
-	rpcgen -c mount/mount.x | sed -e "s/#include \"mount\/mount.h\"/#include \"libnfs-raw-mount.h\"/" > mount/libnfs-raw-mount.c
+	rpcgen -c mount/mount.x | sed -e "s/#include \"mount.h\"/#include \"libnfs-raw-mount.h\"/" > mount/libnfs-raw-mount.c
 
 mount/libnfs-raw-mount.o: mount/libnfs-raw-mount.c mount/libnfs-raw-mount.h
 	@echo Compiling $@
@@ -77,7 +77,7 @@ nfs/libnfs-raw-nfs.h: nfs/nfs.x
 
 nfs/libnfs-raw-nfs.c: nfs/nfs.x
 	@echo Generating $@
-	rpcgen -c nfs/nfs.x | sed -e "s/#include \"nfs\/nfs.h\"/#include \"libnfs-raw-nfs.h\"/" > nfs/libnfs-raw-nfs.c
+	rpcgen -c nfs/nfs.x | sed -e "s/#include \"nfs.h\"/#include \"libnfs-raw-nfs.h\"/" > nfs/libnfs-raw-nfs.c
 
 nfs/libnfs-raw-nfs.o: nfs/libnfs-raw-nfs.c nfs/libnfs-raw-nfs.h
 	@echo Compiling $@
