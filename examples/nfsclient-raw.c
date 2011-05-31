@@ -20,7 +20,7 @@
  */
 
 #define SERVER "10.1.1.27"
-#define EXPORT "/VIRTUAL"
+#define EXPORT "/shared"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -28,17 +28,58 @@
 #include "libnfs.h"
 #include "libnfs-raw.h"
 #include "libnfs-raw-mount.h"
+#include "libnfs-raw-nfs.h"
 
 struct client {
        char *server;
        char *export;
        uint32_t mount_port;
        int is_finished;
+       struct nfs_fh3 rootfh;
 };
+
+void nfs_fsinfo_cb(struct rpc_context *rpc _U_, int status, void *data, void *private_data)
+{
+	struct client *client = private_data;
+	FSINFO3res *res = data;
+
+	if (status == RPC_STATUS_ERROR) {
+		printf("nfs/fsinfo call failed with \"%s\"\n", (char *)data);
+		exit(10);
+	}
+	if (status != RPC_STATUS_SUCCESS) {
+		printf("nfs/fsinfo call to server %s failed, status:%d\n", client->server, status);
+		exit(10);
+	}
+
+	printf("Got reply from server for NFS/FSINFO procedure.\n");
+	printf("Read Max:%d\n", (int)res->FSINFO3res_u.resok.rtmax);
+	printf("Write Max:%d\n", (int)res->FSINFO3res_u.resok.wtmax);
+	client->is_finished = 1;
+}
+
+
+void nfs_connect_cb(struct rpc_context *rpc, int status, void *data _U_, void *private_data)
+{
+	struct client *client = private_data;
+
+	if (status != RPC_STATUS_SUCCESS) {
+		printf("connection to RPC.MOUNTD on server %s failed\n", client->server);
+		exit(10);
+	}
+
+	printf("Connected to RPC.NFSDD on %s:%d\n", client->server, client->mount_port);
+	printf("Send FSINFO request\n");
+	if (rpc_nfs_fsinfo_async(rpc, nfs_fsinfo_cb, &client->rootfh, client) != 0) {
+		printf("Failed to send fsinfo request\n");
+		exit(10);
+	}
+}
 
 void mount_mnt_cb(struct rpc_context *rpc, int status, void *data, void *private_data)
 {
 	struct client *client = private_data;
+	mountres3 *mnt = data;
 
 	if (status == RPC_STATUS_ERROR) {
 		printf("mount/mnt call failed with \"%s\"\n", (char *)data);
@@ -50,7 +91,21 @@ void mount_mnt_cb(struct rpc_context *rpc, int status, void *data, void *private
 	}
 
 	printf("Got reply from server for MOUNT/MNT procedure.\n");
-	client->is_finished = 1;
+	client->rootfh.data.data_len = mnt->mountres3_u.mountinfo.fhandle.fhandle3_len;
+        client->rootfh.data.data_val = malloc(client->rootfh.data.data_len);
+	memcpy(client->rootfh.data.data_val, mnt->mountres3_u.mountinfo.fhandle.fhandle3_val, client->rootfh.data.data_len);
+
+	printf("Disconnect socket from mountd server\n");
+	if (rpc_disconnect(rpc, "normal disconnect") != 0) {
+		printf("Failed to disconnect socket to mountd\n");
+		exit(10);
+	}
+
+	printf("Connect to RPC.NFSDD on %s:%d\n", client->server, 2049);
+	if (rpc_connect_async(rpc, client->server, 2049, nfs_connect_cb, client) != 0) {
+		printf("Failed to start connection\n");
+		exit(10);
+	}
 }
 
 
@@ -73,10 +128,9 @@ void mount_null_cb(struct rpc_context *rpc, int status, void *data, void *privat
 		printf("Failed to send mnt request\n");
 		exit(10);
 	}
-
 }
 
-void mount_connect_cb(struct rpc_context *rpc, int status, void *data, void *private_data)
+void mount_connect_cb(struct rpc_context *rpc, int status, void *data _U_, void *private_data)
 {
 	struct client *client = private_data;
 
@@ -97,7 +151,6 @@ void mount_connect_cb(struct rpc_context *rpc, int status, void *data, void *pri
 void pmap_getport_cb(struct rpc_context *rpc, int status, void *data, void *private_data)
 {
 	struct client *client = private_data;
-	uint32_t port;
 
 	if (status == RPC_STATUS_ERROR) {
 		printf("portmapper getport call failed with \"%s\"\n", (char *)data);
@@ -111,7 +164,7 @@ void pmap_getport_cb(struct rpc_context *rpc, int status, void *data, void *priv
 	client->mount_port = *(uint32_t *)data;
 	printf("GETPORT returned Port:%d\n", client->mount_port);
 	if (client->mount_port == 0) {
-		printf("RPC.MOUNTD is not available on server : %s\n", client->server, client->mount_port);
+		printf("RPC.MOUNTD is not available on server : %s:%d\n", client->server, client->mount_port);
 		exit(10);
 	}		
 
@@ -150,7 +203,7 @@ void pmap_null_cb(struct rpc_context *rpc, int status, void *data, void *private
 	}
 }
 
-void pmap_connect_cb(struct rpc_context *rpc, int status, void *data, void *private_data)
+void pmap_connect_cb(struct rpc_context *rpc, int status, void *data _U_, void *private_data)
 {
 	struct client *client = private_data;
 
@@ -168,11 +221,10 @@ void pmap_connect_cb(struct rpc_context *rpc, int status, void *data, void *priv
 }
 
 
-int main(int argc, char *argv[])
+int main(int argc _U_, char *argv[] _U_)
 {
 	struct rpc_context *rpc;
 	struct pollfd pfd;
-	int ret;
 	struct client client;
 
 	rpc = rpc_init_context();
