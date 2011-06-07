@@ -19,7 +19,7 @@ ifeq ("@is_darwin@","yes")
 else
 	LIBNFS_SO_NAME=libnfs.so.1
 	LIBNFS_SO=lib/libnfs.so.$(VERSION)
-	LDFLAGS+=@CFLAGS@ -shared -Wl,soname=$(LIBNFS_SO_NAME)
+	LDFLAGS+=@CFLAGS@ -shared -Wl,-soname=$(LIBNFS_SO_NAME)
 endif
 
 LIB_OBJS = lib/pdu.o lib/init.o lib/socket.o \
@@ -117,12 +117,12 @@ else
 	$(INSTALLCMD) -m 755 $(LIBISCSI_SO) $(LIBDIR)
 	$(INSTALLCMD) -m 755 $(LIBNFS_A) $(LIBDIR)
 endif
-	mkdir -p $(prefix)/usr/include/nfsc
-	$(INSTALLCMD) -m 644 include/libnfs.h $(prefix)/usr/include/nfsc
-	$(INSTALLCMD) -m 644 include/libnfs-private.h $(prefix)/usr/include/nfsc
-	$(INSTALLCMD) -m 644 mount/libnfs-raw-mount.h $(prefix)/usr/include/nfsc
-	$(INSTALLCMD) -m 644 nfs/libnfs-raw-nfs.h $(prefix)/usr/include/nfsc
-	$(INSTALLCMD) -m 644 portmap/libnfs-raw-portmap.h $(prefix)/usr/include/nfsc
+	mkdir -p $(prefix)/include/nfsc
+	$(INSTALLCMD) -m 644 include/libnfs.h $(prefix)/include/nfsc
+	$(INSTALLCMD) -m 644 include/libnfs-private.h $(prefix)/include/nfsc
+	$(INSTALLCMD) -m 644 mount/libnfs-raw-mount.h $(prefix)/include/nfsc
+	$(INSTALLCMD) -m 644 nfs/libnfs-raw-nfs.h $(prefix)/include/nfsc
+	$(INSTALLCMD) -m 644 portmap/libnfs-raw-portmap.h $(prefix)/include/nfsc
 
 distclean: clean
 	rm -f config.h config.log config.status configure Makefile
