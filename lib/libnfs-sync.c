@@ -56,7 +56,7 @@
 struct sync_cb_data {
        int is_finished;
        int status;
-       off_t offset;
+       off64_t offset;
        void *return_data;
        int return_int;
 };
@@ -257,7 +257,7 @@ static void pread_cb(int status, struct nfs_context *nfs, void *data, void *priv
 	memcpy(buffer, (char *)data, status);
 }
 
-int nfs_pread(struct nfs_context *nfs, struct nfsfh *nfsfh, off_t offset, size_t count, char *buffer)
+int nfs_pread(struct nfs_context *nfs, struct nfsfh *nfsfh, off64_t offset, size_t count, char *buffer)
 {
 	struct sync_cb_data cb_data;
 
@@ -352,7 +352,7 @@ static void pwrite_cb(int status, struct nfs_context *nfs, void *data, void *pri
 	}
 }
 
-int nfs_pwrite(struct nfs_context *nfs, struct nfsfh *nfsfh, off_t offset, size_t count, char *buf)
+int nfs_pwrite(struct nfs_context *nfs, struct nfsfh *nfsfh, off64_t offset, size_t count, char *buf)
 {
 	struct sync_cb_data cb_data;
 
@@ -426,7 +426,7 @@ static void ftruncate_cb(int status, struct nfs_context *nfs, void *data, void *
 	}
 }
 
-int nfs_ftruncate(struct nfs_context *nfs, struct nfsfh *nfsfh, off_t length)
+int nfs_ftruncate(struct nfs_context *nfs, struct nfsfh *nfsfh, off64_t length)
 {
 	struct sync_cb_data cb_data;
 
@@ -459,7 +459,7 @@ static void truncate_cb(int status, struct nfs_context *nfs, void *data, void *p
 	}
 }
 
-int nfs_truncate(struct nfs_context *nfs, const char *path, off_t length)
+int nfs_truncate(struct nfs_context *nfs, const char *path, off64_t length)
 {
 	struct sync_cb_data cb_data;
 
@@ -677,11 +677,11 @@ static void lseek_cb(int status, struct nfs_context *nfs, void *data, void *priv
 	}
 
 	if (cb_data->return_data != NULL) {
-		memcpy(cb_data->return_data, data, sizeof(off_t));
+		memcpy(cb_data->return_data, data, sizeof(off64_t));
 	}
 }
 
-int nfs_lseek(struct nfs_context *nfs, struct nfsfh *nfsfh, off_t offset, int whence, off_t *current_offset)
+int nfs_lseek(struct nfs_context *nfs, struct nfsfh *nfsfh, off64_t offset, int whence, off64_t *current_offset)
 {
 	struct sync_cb_data cb_data;
 

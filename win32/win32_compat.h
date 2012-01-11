@@ -34,6 +34,8 @@ THE SOFTWARE.
 #include <io.h>
 #include <sys/stat.h>
 
+typedef __int64 off64_t;
+
 typedef int uid_t;
 typedef int gid_t;
 typedef int socklen_t;
