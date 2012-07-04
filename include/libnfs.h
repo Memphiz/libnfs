@@ -18,6 +18,7 @@
  * This is the highlevel interface to access NFS resources using a posix-like interface
  */
 #include <stdint.h>
+#include "libnfs-zdr.h"
 
 struct nfs_context;
 struct rpc_context;
