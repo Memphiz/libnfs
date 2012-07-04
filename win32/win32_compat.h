@@ -33,10 +33,14 @@ THE SOFTWARE.
 #include <basetsd.h>
 #include <io.h>
 #include <sys/stat.h>
+#include <stdint.h>
 
 typedef int uid_t;
 typedef int gid_t;
 typedef int socklen_t;
+typedef char *caddr_t;
+typedef unsigned __int64 u_quad_t;
+
 
 #define S_IRUSR 0000400
 #define S_IWUSR 0000200
@@ -98,6 +102,7 @@ struct pollfd {
 int     win32_inet_pton(int af, const char * src, void * dst);
 int     win32_poll(struct pollfd *fds, unsigned int nfsd, int timeout);
 int     win32_gettimeofday(struct timeval *tv, struct timezone *tz);
+uint32_t getuid();
 
 #endif//win32_COMPAT_H_
 #endif//WIN32

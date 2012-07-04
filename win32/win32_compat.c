@@ -198,4 +198,9 @@ int win32_gettimeofday(struct timeval *tv, struct timezone *tz)
   return 0;
 }
 
+uint32_t getuid()
+{
+	return 0;//caution - windows will allways auth as user root!
+}
+
 #endif

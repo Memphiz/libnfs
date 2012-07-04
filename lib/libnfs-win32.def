@@ -78,3 +78,4 @@ nfs_utimes_async
 nfs_which_events
 nfs_write
 nfs_write_async
+libnfs_authunix_create

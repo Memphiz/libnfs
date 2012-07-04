@@ -21,10 +21,17 @@
  * It aims to be compatible with normal rpcgen generated functions.
  */
 
+#ifdef HAVE_CONFIG
 #include "config.h"
+#endif//HAVE_CONFIG
 
 #ifndef _LIBNFS_ZDR_H_
 #define _LIBNFS_ZDR_H_
+
+#ifdef WIN32
+#include "win32_compat.h"
+#define DllExport
+#endif
 
 #include <stdio.h>
 #include <assert.h>
@@ -38,6 +45,7 @@
 /* we dont need these */
 typedef void CLIENT;
 struct svc_req {
+	void *foo;
 };
 typedef void SVCXPRT;
 
