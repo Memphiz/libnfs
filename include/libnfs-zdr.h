@@ -31,12 +31,19 @@
 #ifdef WIN32
 #include "win32_compat.h"
 #define DllExport
+#else
+#ifdef ANDROID
+#ifndef u_quad_t                                                                                                               
+typedef unsigned long long u_quad_t;                                                                                           
+#endif
+#endif
 #endif
 
 #include <stdio.h>
 #include <assert.h>
 #include <stdint.h>
 #include <sys/types.h>
+#include <sys/time.h>
 
 #define _RPC_RPC_H 1
 #define _RPC_ZDR_H 1

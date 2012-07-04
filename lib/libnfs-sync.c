@@ -23,7 +23,14 @@
 #else
 #include <strings.h>
 #include <unistd.h>
-#include <sys/statvfs.h>
+#ifndef ANDROID                                                                                                               
+#include <sys/statvfs.h>                                                                                                      
+#else                                                                                                                         
+#include <sys/vfs.h>                                                                                                          
+#include <linux/in.h>
+#define statvfs statfs                                                                                                        
+#define fstatvfs fstatfs                                                                                                      
+#endif
 #include <poll.h>
 #include <sys/ioctl.h>
 #include <netdb.h>
