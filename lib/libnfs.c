@@ -275,6 +275,7 @@ static void nfs_mount_9_cb(struct rpc_context *rpc, int status, void *command_da
 	struct nfs_cb_data *data = private_data;
 	struct nfs_context *nfs = data->nfs;
 	FSINFO3res *res = command_data;
+	struct GETATTR3args args;
 
 	assert(rpc->magic == RPC_CONTEXT_MAGIC);
 
@@ -292,7 +293,11 @@ static void nfs_mount_9_cb(struct rpc_context *rpc, int status, void *command_da
 	nfs->readmax = res->FSINFO3res_u.resok.rtmax;
 	nfs->writemax = res->FSINFO3res_u.resok.wtmax;
 
-	if (rpc_nfs_getattr_async(rpc, nfs_mount_10_cb, &nfs->rootfh, data) != 0) {
+	memset(&args, 0, sizeof(GETATTR3args));
+	args.object.data.data_len = nfs->rootfh.data.data_len; 
+	args.object.data.data_val = nfs->rootfh.data.data_val; 
+
+	if (rpc_nfs3_getattr_async(rpc, nfs_mount_10_cb, &args, data) != 0) {
 		data->cb(-ENOMEM, nfs, command_data, data->private_data);
 		free_nfs_cb_data(data);
 		return;
@@ -625,6 +630,7 @@ static void nfs_lookup_path_1_cb(struct rpc_context *rpc, int status, void *comm
 static int nfs_lookup_path_async_internal(struct nfs_context *nfs, struct nfs_cb_data *data, struct nfs_fh3 *fh)
 {
 	char *path, *str;
+	LOOKUP3args args;
 
 	while (*data->path == '/') {
 	      data->path++;
@@ -655,7 +661,13 @@ static int nfs_lookup_path_async_internal(struct nfs_context *nfs, struct nfs_cb
 		return 0;
 	}
 
-	if (rpc_nfs_lookup_async(nfs->rpc, nfs_lookup_path_1_cb, fh, path, data) != 0) {
+
+	memset(&args, 0, sizeof(LOOKUP3args));
+	args.what.dir.data.data_len = fh->data.data_len; 
+	args.what.dir.data.data_val = fh->data.data_val; 
+	args.what.name              = path;
+
+	if (rpc_nfs3_lookup_async(nfs->rpc, nfs_lookup_path_1_cb, &args, data) != 0) {
 		rpc_set_error(nfs->rpc, "RPC error: Failed to send lookup call for %s", data->path);
 		data->cb(-ENOMEM, nfs, rpc_get_error(nfs->rpc), data->private_data);
 		free_nfs_cb_data(data);
@@ -768,7 +780,13 @@ static void nfs_stat_1_cb(struct rpc_context *rpc, int status, void *command_dat
 
 static int nfs_stat_continue_internal(struct nfs_context *nfs, struct nfs_cb_data *data)
 {
-	if (rpc_nfs_getattr_async(nfs->rpc, nfs_stat_1_cb, &data->fh, data) != 0) {
+	struct GETATTR3args args;
+
+	memset(&args, 0, sizeof(GETATTR3args));
+	args.object.data.data_len = data->fh.data.data_len; 
+	args.object.data.data_val = data->fh.data.data_val; 
+
+	if (rpc_nfs3_getattr_async(nfs->rpc, nfs_stat_1_cb, &args, data) != 0) {
 		rpc_set_error(nfs->rpc, "RPC error: Failed to send STAT GETATTR call for %s", data->path);
 		data->cb(-ENOMEM, nfs, rpc_get_error(nfs->rpc), data->private_data);
 		free_nfs_cb_data(data);
@@ -872,6 +890,7 @@ static void nfs_open_cb(struct rpc_context *rpc, int status, void *command_data,
 static int nfs_open_continue_internal(struct nfs_context *nfs, struct nfs_cb_data *data)
 {
 	int nfsmode = 0;
+	ACCESS3args args;
 
 	if (data->continue_int & O_WRONLY) {
 		nfsmode |= ACCESS3_MODIFY;
@@ -883,7 +902,12 @@ static int nfs_open_continue_internal(struct nfs_context *nfs, struct nfs_cb_dat
 		nfsmode |= ACCESS3_READ;
 	}
 
-	if (rpc_nfs_access_async(nfs->rpc, nfs_open_cb, &data->fh, nfsmode, data) != 0) {
+	memset(&args, 0, sizeof(ACCESS3args));
+	args.object.data.data_len = data->fh.data.data_len;
+	args.object.data.data_val = data->fh.data.data_val;
+	args.access = nfsmode;
+
+	if (rpc_nfs3_access_async(nfs->rpc, nfs_open_cb, &args, data) != 0) {
 		rpc_set_error(nfs->rpc, "RPC error: Failed to send OPEN ACCESS call for %s", data->path);
 		data->cb(-ENOMEM, nfs, rpc_get_error(nfs->rpc), data->private_data);
 		free_nfs_cb_data(data);
@@ -1021,7 +1045,15 @@ int nfs_pread_async(struct nfs_context *nfs, struct nfsfh *nfsfh, uint64_t offse
 	nfsfh->offset = offset;
 
 	if (count <= nfs_get_readmax(nfs)) {
-		if (rpc_nfs_read_async(nfs->rpc, nfs_pread_cb, &nfsfh->fh, offset, count, data) != 0) {
+		READ3args args;
+
+		memset(&args, 0, sizeof(READ3args));
+		args.file.data.data_len = nfsfh->fh.data.data_len;
+		args.file.data.data_val = nfsfh->fh.data.data_val;
+		args.offset = offset;
+		args.count = count;
+
+		if (rpc_nfs3_read_async(nfs->rpc, nfs_pread_cb, &args, data) != 0) {
 			rpc_set_error(nfs->rpc, "RPC error: Failed to send READ call for %s", data->path);
 			data->cb(-ENOMEM, nfs, rpc_get_error(nfs->rpc), data->private_data);
 			free_nfs_cb_data(data);
@@ -1048,6 +1080,7 @@ int nfs_pread_async(struct nfs_context *nfs, struct nfsfh *nfsfh, uint64_t offse
 	while (count > 0) {
 		uint64_t readcount = count;
 		struct nfs_mcb_data *mdata;
+		READ3args args;
 
 		if (readcount > nfs_get_readmax(nfs)) {
 			readcount = nfs_get_readmax(nfs);
@@ -1062,7 +1095,14 @@ int nfs_pread_async(struct nfs_context *nfs, struct nfsfh *nfsfh, uint64_t offse
 		mdata->data   = data;
 		mdata->offset = offset;
 		mdata->count  = readcount;
-		if (rpc_nfs_read_async(nfs->rpc, nfs_pread_mcb, &nfsfh->fh, offset, readcount, mdata) != 0) {
+
+		memset(&args, 0, sizeof(READ3args));
+		args.file.data.data_len = nfsfh->fh.data.data_len;
+		args.file.data.data_val = nfsfh->fh.data.data_val;
+		args.offset = offset;
+		args.count = readcount;
+
+		if (rpc_nfs3_read_async(nfs->rpc, nfs_pread_mcb, &args, mdata) != 0) {
 			rpc_set_error(nfs->rpc, "RPC error: Failed to send READ call for %s", data->path);
 			data->cb(-ENOMEM, nfs, rpc_get_error(nfs->rpc), data->private_data);
 			free(mdata);
@@ -1201,7 +1241,18 @@ int nfs_pwrite_async(struct nfs_context *nfs, struct nfsfh *nfsfh, uint64_t offs
 	nfsfh->offset = offset;
 
 	if (count <= nfs_get_writemax(nfs)) {
-		if (rpc_nfs_write_async(nfs->rpc, nfs_pwrite_cb, &nfsfh->fh, buf, offset, count, nfsfh->is_sync?FILE_SYNC:UNSTABLE, data) != 0) {
+		WRITE3args args;
+
+		memset(&args, 0, sizeof(WRITE3args));
+		args.file.data.data_len = nfsfh->fh.data.data_len;
+		args.file.data.data_val = nfsfh->fh.data.data_val;
+		args.offset = offset;
+		args.count  = count;
+		args.stable = nfsfh->is_sync?FILE_SYNC:UNSTABLE;
+		args.data.data_len = count;
+		args.data.data_val = buf;
+
+		if (rpc_nfs3_write_async(nfs->rpc, nfs_pwrite_cb, &args, data) != 0) {
 			rpc_set_error(nfs->rpc, "RPC error: Failed to send WRITE call for %s", data->path);
 			data->cb(-ENOMEM, nfs, rpc_get_error(nfs->rpc), data->private_data);
 			free_nfs_cb_data(data);
@@ -1220,6 +1271,7 @@ int nfs_pwrite_async(struct nfs_context *nfs, struct nfsfh *nfsfh, uint64_t offs
 	while (count > 0) {
 		uint64_t writecount = count;
 		struct nfs_mcb_data *mdata;
+		WRITE3args args;
 
 		if (writecount > nfs_get_writemax(nfs)) {
 			writecount = nfs_get_writemax(nfs);
@@ -1235,7 +1287,16 @@ int nfs_pwrite_async(struct nfs_context *nfs, struct nfsfh *nfsfh, uint64_t offs
 		mdata->offset = offset;
 		mdata->count  = writecount;
 
-		if (rpc_nfs_write_async(nfs->rpc, nfs_pwrite_mcb, &nfsfh->fh, &buf[offset - data->start_offset], offset, writecount, nfsfh->is_sync?FILE_SYNC:UNSTABLE, mdata) != 0) {
+		memset(&args, 0, sizeof(WRITE3args));
+		args.file.data.data_len = nfsfh->fh.data.data_len;
+		args.file.data.data_val = nfsfh->fh.data.data_val;
+		args.offset = offset;
+		args.count  = writecount;
+		args.stable = nfsfh->is_sync?FILE_SYNC:UNSTABLE;
+		args.data.data_len = writecount;
+		args.data.data_val = &buf[offset - data->start_offset];
+
+		if (rpc_nfs3_write_async(nfs->rpc, nfs_pwrite_mcb, &args, mdata) != 0) {
 			rpc_set_error(nfs->rpc, "RPC error: Failed to send WRITE call for %s", data->path);
 			data->cb(-ENOMEM, nfs, rpc_get_error(nfs->rpc), data->private_data);
 			free(mdata);
@@ -1287,6 +1348,7 @@ int nfs_close_async(struct nfs_context *nfs, struct nfsfh *nfsfh, nfs_cb cb, voi
 int nfs_fstat_async(struct nfs_context *nfs, struct nfsfh *nfsfh, nfs_cb cb, void *private_data)
 {
 	struct nfs_cb_data *data;
+	struct GETATTR3args args;
 
 	data = malloc(sizeof(struct nfs_cb_data));
 	if (data == NULL) {
@@ -1298,7 +1360,11 @@ int nfs_fstat_async(struct nfs_context *nfs, struct nfsfh *nfsfh, nfs_cb cb, voi
 	data->cb           = cb;
 	data->private_data = private_data;
 
-	if (rpc_nfs_getattr_async(nfs->rpc, nfs_stat_1_cb, &nfsfh->fh, data) != 0) {
+	memset(&args, 0, sizeof(GETATTR3args));
+	args.object.data.data_len = nfsfh->fh.data.data_len; 
+	args.object.data.data_val = nfsfh->fh.data.data_val; 
+
+	if (rpc_nfs3_getattr_async(nfs->rpc, nfs_stat_1_cb, &args, data) != 0) {
 		rpc_set_error(nfs->rpc, "RPC error: Failed to send STAT GETATTR call for %s", data->path);
 		data->cb(-ENOMEM, nfs, rpc_get_error(nfs->rpc), data->private_data);
 		free_nfs_cb_data(data);
@@ -1704,6 +1770,7 @@ static void nfs_creat_1_cb(struct rpc_context *rpc, int status, void *command_da
 	struct nfs_cb_data *data = private_data;
 	struct nfs_context *nfs = data->nfs;
 	char *str = data->continue_data;
+	LOOKUP3args args;
 
 	assert(rpc->magic == RPC_CONTEXT_MAGIC);
 
@@ -1727,7 +1794,12 @@ static void nfs_creat_1_cb(struct rpc_context *rpc, int status, void *command_da
 		return;
 	}
 
-	if (rpc_nfs_lookup_async(nfs->rpc, nfs_create_2_cb, &data->fh, str, data) != 0) {
+	memset(&args, 0, sizeof(LOOKUP3args));
+	args.what.dir.data.data_len = data->fh.data.data_len; 
+	args.what.dir.data.data_val = data->fh.data.data_val; 
+	args.what.name              = str;
+
+	if (rpc_nfs3_lookup_async(nfs->rpc, nfs_create_2_cb, &args, data) != 0) {
 		rpc_set_error(nfs->rpc, "RPC error: Failed to send lookup call for %s/%s", data->saved_path, str);
 		data->cb(-ENOMEM, nfs, rpc_get_error(nfs->rpc), data->private_data);
 		free_nfs_cb_data(data);
@@ -2137,12 +2209,18 @@ static void nfs_opendir2_cb(struct rpc_context *rpc, int status, void *command_d
 	rdpe_cb_data->data = data;
 	for (nfsdirent = nfsdir->entries; nfsdirent; nfsdirent = nfsdirent->next) {
 		struct rdpe_lookup_cb_data *rdpe_lookup_cb_data;
+		LOOKUP3args args;
 
 		rdpe_lookup_cb_data = malloc(sizeof(struct rdpe_lookup_cb_data));
 		rdpe_lookup_cb_data->rdpe_cb_data = rdpe_cb_data;
 		rdpe_lookup_cb_data->nfsdirent = nfsdirent;
 
-		if (rpc_nfs_lookup_async(nfs->rpc, nfs_opendir3_cb, &data->fh, nfsdirent->name, rdpe_lookup_cb_data) != 0) {
+		memset(&args, 0, sizeof(LOOKUP3args));
+		args.what.dir.data.data_len = data->fh.data.data_len; 
+		args.what.dir.data.data_val = data->fh.data.data_val; 
+		args.what.name              = nfsdirent->name;
+
+		if (rpc_nfs3_lookup_async(nfs->rpc, nfs_opendir3_cb, &args, rdpe_lookup_cb_data) != 0) {
 			rpc_set_error(nfs->rpc, "RPC error: Failed to send READDIR LOOKUP call");
 
 			/* if we have already commands in flight, we cant just stop, we have to wait for the
@@ -2373,6 +2451,7 @@ static void nfs_lseek_1_cb(struct rpc_context *rpc, int status, void *command_da
 int nfs_lseek_async(struct nfs_context *nfs, struct nfsfh *nfsfh, uint64_t offset, int whence, nfs_cb cb, void *private_data)
 {
 	struct lseek_cb_data *data;
+	struct GETATTR3args args;
 
 	if (whence == SEEK_SET) {
 		nfsfh->offset = offset;
@@ -2397,7 +2476,11 @@ int nfs_lseek_async(struct nfs_context *nfs, struct nfsfh *nfsfh, uint64_t offse
 	data->cb           = cb;
 	data->private_data = private_data;
 
-	if (rpc_nfs_getattr_async(nfs->rpc, nfs_lseek_1_cb, &nfsfh->fh, data) != 0) {
+	memset(&args, 0, sizeof(GETATTR3args));
+	args.object.data.data_len = nfsfh->fh.data.data_len; 
+	args.object.data.data_val = nfsfh->fh.data.data_val; 
+
+	if (rpc_nfs3_getattr_async(nfs->rpc, nfs_lseek_1_cb, &args, data) != 0) {
 		rpc_set_error(nfs->rpc, "RPC error: Failed to send LSEEK GETATTR call");
 		free(data);
 		return -1;
@@ -2959,6 +3042,7 @@ static void nfs_access_cb(struct rpc_context *rpc, int status, void *command_dat
 static int nfs_access_continue_internal(struct nfs_context *nfs, struct nfs_cb_data *data)
 {
 	int nfsmode = 0;
+	ACCESS3args args;
 
 	if (data->continue_int & R_OK) {
 		nfsmode |= ACCESS3_READ;
@@ -2970,7 +3054,12 @@ static int nfs_access_continue_internal(struct nfs_context *nfs, struct nfs_cb_d
 		nfsmode |= ACCESS3_EXECUTE;
 	}
 
-	if (rpc_nfs_access_async(nfs->rpc, nfs_access_cb, &data->fh, nfsmode, data) != 0) {
+	memset(&args, 0, sizeof(ACCESS3args));
+	args.object.data.data_len = data->fh.data.data_len;
+	args.object.data.data_val = data->fh.data.data_val;
+	args.access = nfsmode;
+
+	if (rpc_nfs3_access_async(nfs->rpc, nfs_access_cb, &args, data) != 0) {
 		rpc_set_error(nfs->rpc, "RPC error: Failed to send OPEN ACCESS call for %s", data->path);
 		data->cb(-ENOMEM, nfs, rpc_get_error(nfs->rpc), data->private_data);
 		free_nfs_cb_data(data);
