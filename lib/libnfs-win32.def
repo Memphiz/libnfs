@@ -63,6 +63,8 @@ nfs_service
 nfs_set_auth
 nfs_stat
 nfs_stat_async
+nfs_stat64
+nfs_stat64_async
 nfs_statvfs
 nfs_statvfs_async
 nfs_symlink
