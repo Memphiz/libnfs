@@ -85,7 +85,12 @@ static void set_nonblocking(int fd)
 	int v = 0;
 #if defined(WIN32)
 	long nonblocking=1;
+	struct linger lng;
 	v = ioctl(fd, FIONBIO, &nonblocking);
+
+	lng.l_onoff = 1;
+	lng.l_linger = 0;
+	setsockopt(fd, SOL_SOCKET, SO_LINGER, &lng, sizeof(lng));
 #else
 	v = fcntl(fd, F_GETFL, 0);
         fcntl(fd, F_SETFL, v | O_NONBLOCK);
